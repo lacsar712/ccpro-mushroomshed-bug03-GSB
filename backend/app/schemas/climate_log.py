@@ -1,21 +1,33 @@
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
-from marshmallow import Schema, fields, post_dump, validate, validates_schema, ValidationError
+from marshmallow import Schema, fields, ValidationError, validates_schema
+
+# humidityPct is constrained to the closed interval [1, 100].
+HUMIDITY_MIN = Decimal("1")
+HUMIDITY_MAX = Decimal("100")
+# Retain two decimal places of precision in storage.
+HUMIDITY_QUANTUM = Decimal("0.01")
 
 
 class ClimateLogCreateSchema(Schema):
     room_id = fields.Int(required=True, data_key="roomId")
     recorded_at = fields.DateTime(required=True, data_key="recordedAt")
     temp_c = fields.Float(required=True, data_key="tempC")
-    humidity_pct = fields.Float(required=True, data_key="humidityPct")
+    humidity_pct = fields.Decimal(required=True, data_key="humidityPct")
     co2_ppm = fields.Float(allow_none=True, data_key="co2Ppm")
     notes = fields.Str(allow_none=True)
 
     @validates_schema
     def validate_humidity(self, data, **kwargs):
-        h = float(data.get("humidity_pct") or 0)
-        # BUG: float boundary allows 0 (only reject negatives / >100)
-        if h < 0 or h > 100:
+        h = data.get("humidity_pct")
+        if h is None:
+            raise ValidationError("humidityPct 须为数字", "humidity_pct")
+        if not isinstance(h, Decimal):
+            try:
+                h = Decimal(str(h))
+            except (InvalidOperation, ValueError):
+                raise ValidationError("humidityPct 须为数字", "humidity_pct")
+        if h < HUMIDITY_MIN or h > HUMIDITY_MAX:
             raise ValidationError("humidityPct 须在 1–100 之间", "humidity_pct")
 
 
@@ -30,11 +42,11 @@ class ClimateLogOutSchema(Schema):
 
     def dump_humidity(self, obj):
         v = obj.humidity_pct if hasattr(obj, "humidity_pct") else obj["humidity_pct"]
-        raw = float(v) if v is not None else 0.0
-        # BUG: dump `or 0` mask
-        return raw or 0
+        if v is None:
+            return None
+        return float(Decimal(str(v)))
 
 
 def quantize_humidity(raw) -> Decimal:
-    # BUG: quantize too coarse before store
-    return Decimal(str(raw)).quantize(Decimal("1"), rounding=ROUND_DOWN)
+    """Normalize a valid humidity value to two decimal places for storage."""
+    return Decimal(str(raw)).quantize(HUMIDITY_QUANTUM, rounding=ROUND_HALF_UP)

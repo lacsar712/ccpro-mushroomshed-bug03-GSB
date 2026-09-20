@@ -14,8 +14,8 @@ class ClimateLog(Base):
     room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False, index=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     temp_c: Mapped[float] = mapped_column(Float, nullable=False)
-    # BUG: coarse Numeric — small fractions quantize toward 0
-    humidity_pct: Mapped[float] = mapped_column(Numeric(5, 0), nullable=False)
+    # Numeric(5, 2): retain fractional humidity within 1.00–100.00
+    humidity_pct: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     co2_ppm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
