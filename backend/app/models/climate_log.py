@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, Numeric, Text
@@ -14,8 +15,8 @@ class ClimateLog(Base):
     room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False, index=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     temp_c: Mapped[float] = mapped_column(Float, nullable=False)
-    # BUG: coarse Numeric — small fractions quantize toward 0
-    humidity_pct: Mapped[float] = mapped_column(Numeric(5, 0), nullable=False)
+    # Decimal with fractional scale so boundary-adjacent values (e.g. 0.5/1.5) survive a round-trip.
+    humidity_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     co2_ppm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 

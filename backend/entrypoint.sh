@@ -24,6 +24,15 @@ PY
 echo "Creating tables..."
 python -c "from app.database import Base, engine; from app import models; Base.metadata.create_all(bind=engine)"
 
+echo "Aligning climate_logs.humidity_pct column..."
+python - <<'PY'
+from sqlalchemy import text
+from app.database import engine
+
+with engine.begin() as conn:
+    conn.execute(text("ALTER TABLE climate_logs MODIFY COLUMN humidity_pct NUMERIC(5,2) NOT NULL"))
+PY
+
 echo "Seeding data..."
 python -c "from app.seed import seed; seed()"
 
